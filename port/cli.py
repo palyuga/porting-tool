@@ -448,7 +448,7 @@ class _HelpAction(argparse.Action):
             config = load_branches_only()
             print(config.format_branches_table())
         except (FileNotFoundError, ValueError):
-            print("(No .porting.toml found — branch aliases not available)")
+            print("(No config found — branch aliases not available)")
         parser.exit()
 
 

@@ -27,20 +27,32 @@ Tested with Bitbucket v9.4.17
 
 ## Installation
 
+Add the `porting-tool/bin` directory to your PATH so the `port` command
+is available from any directory.
+
+**Windows:**
+
+1. Press Win+R, run `SystemPropertiesAdvanced`
+2. Click **Environment Variables**, under **User variables**, select **Path** -> **Edit**
+4. Add a full path, e.g. `C:\tools\porting-tool\bin`
+5. Click **OK**, restart your terminal
+
+**macOS/Linux:**
+
 ```bash
-cd porting-tool
-pip install .
+echo 'export PATH="$PATH:/path/to/porting-tool/bin"' >> ~/.bashrc
+source ~/.bashrc
 ```
 
-This installs the `port` command globally. For development, use editable mode:
+After that, the `port` command works from any directory:
 
 ```bash
-pip install -e .
+port --help
 ```
 
-You can also run without installing:
+You can also run directly without PATH setup:
 
-```bash
+```bash/cmd
 python -m port --help
 ```
 
@@ -48,17 +60,11 @@ python -m port --help
 
 ### 1. Branch configuration
 
-The tool looks for config in two places (in order):
-
-1. A file named `.porting.toml` in the current directory or any parent
-2. `~/.porting/config.toml` (recommended — works from any directory)
-
-Copy `example.porting.toml` to one of those locations and edit it:
+Copy `example.config.toml` to `~/.porting/config.toml`:
 
 ```bash
-# Recommended: global config in your home directory
 mkdir ~/.porting
-cp example.porting.toml ~/.porting/config.toml
+cp example.config.toml ~/.porting/config.toml
 ```
 
 Set the `[repo]` path to your git project and edit the branches:
@@ -68,7 +74,6 @@ Set the `[repo]` path to your git project and edit the branches:
 path = "C:/projects/tdcore"    # absolute path to your git repository
 
 [branches]
-"128" = "release/tdcore-128-branch"
 "156" = "release/tdcore-156-branch"
 "168" = "release/tdcore-168-branch"
 "176" = "release/tdcore-176-branch"
@@ -79,18 +84,14 @@ The `[repo]` path can be absolute or relative to the config file. It's required
 when the config is not inside the git repo. The tool will automatically switch
 to this directory before running git commands.
 
-**Alternative:** You can also place `.porting.toml` in the git project root itself.
-In that case `[repo]` can be omitted — the tool assumes it's already in the repo.
-This option is useful if you want to commit the config and share it with the team.
+### 2. Bitbucket Access Token
 
-### 2. Bitbucket Personal Access Token
-
-The tool needs a PAT to call the Bitbucket REST API. Create one in Bitbucket:
+The tool needs an Access Token to call the Bitbucket REST API. Create one in Bitbucket:
 
 1. Click your avatar (top-right) -> **Manage account**
-2. In the left sidebar, click **Personal access tokens**
+2. In the left sidebar, click **HTTP access tokens**
 3. Click **Create a token**
-4. Name it (e.g. "port-tool"), grant **Project read** and **Repository write** permissions
+4. Name it, grant **Project read** and **Repository write** permissions
 5. Click **Create** and copy the token
 
 Then configure it (choose one):

@@ -46,26 +46,20 @@ Then choose ONE of these options to configure it:
 CONFIG_NOT_FOUND_HELP = f"""\
 Could not find the port tool configuration.
 
-The tool looks for config in two places (in order):
-  1. A file named {CONFIG_FILENAME} in the current directory or any parent
-  2. {GLOBAL_CONFIG_FILE}
+The tool looks for config at: {GLOBAL_CONFIG_FILE}
 
 To get started:
-  1. Find example.porting.toml in the port tool installation directory
-  2. Copy it to one of the locations above
+  1. Find example.config.toml in the port tool installation directory
+  2. Copy it to {GLOBAL_CONFIG_FILE}
   3. Edit the [branches] section to match your release branches
-  4. Set the [repo] path to your git repository (required when the config
-     is not inside the repo):
+  4. Set the [repo] path to your git repository:
 
      [repo]
      path = "C:/projects/project-1"   # absolute path to your git project
 
      [branches]
      "128" = "release/my-128-branch"
-     "m" = "master"
-
-Recommended setup: copy to {GLOBAL_CONFIG_FILE}
-with an absolute [repo] path. This works from any directory."""
+     "m" = "master" """
 
 
 class PortConfig:
