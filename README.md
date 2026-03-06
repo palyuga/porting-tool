@@ -25,40 +25,9 @@ For each target branch, the tool:
 - git
 Tested with Bitbucket v9.4.17
 
-## Installation
+## Configuration Setup
 
-Add the `porting-tool/bin` directory to your PATH so the `port` command
-is available from any directory.
-
-**Windows:**
-
-1. Press Win+R, run `SystemPropertiesAdvanced`
-2. Click **Environment Variables**, under **User variables**, select **Path** -> **Edit**
-4. Add a full path, e.g. `C:\tools\porting-tool\bin`
-5. Click **OK**, restart your terminal
-
-**macOS/Linux:**
-
-```bash
-echo 'export PATH="$PATH:/path/to/porting-tool/bin"' >> ~/.bashrc
-source ~/.bashrc
-```
-
-After that, the `port` command works from any directory:
-
-```bash
-port --help
-```
-
-You can also run directly without PATH setup:
-
-```bash/cmd
-python -m port --help
-```
-
-## Setup
-
-### 1. Branch configuration
+### 1. Branches' configuration
 
 Copy `example.config.toml` to `~/.porting/config.toml`:
 
@@ -115,8 +84,6 @@ Create `~/.porting/auth.toml`:
 pat = "your-token-here"
 ```
 
-### 3. SSH key
-
 Make sure your SSH key is configured in git for push/fetch operations.
 The tool uses your existing git/SSH setup — no additional SSH configuration is needed.
 
@@ -126,13 +93,13 @@ The tool uses your existing git/SSH setup — no additional SSH configuration is
 
 ```bash
 # Using short aliases
-port --pr https://bitbucket.example.com/projects/PROJ/repos/my-repo/pull-requests/123 --to 168 176
+python -m port --pr https://bitbucket.example.com/projects/PROJ/repos/my-repo/pull-requests/123 --to 168 176
 
 # Using full branch names
-port --pr https://bitbucket.example.com/projects/PROJ/repos/my-repo/pull-requests/123 --to release/tdcore-168-branch
+python -m port --pr https://bitbucket.example.com/projects/PROJ/repos/my-repo/pull-requests/123 --to release/tdcore-168-branch
 
 # Mix aliases and full names
-port --pr https://bitbucket.example.com/projects/PROJ/repos/my-repo/pull-requests/123 --to 168 release/tdcore-176-branch m
+python -m port --pr https://bitbucket.example.com/projects/PROJ/repos/my-repo/pull-requests/123 --to 168 release/tdcore-176-branch m
 ```
 
 ### Auto-add reviewers
@@ -168,7 +135,32 @@ port --continue
 The tool will complete the cherry-pick, push the branch, create the PR,
 and continue with any remaining target branches.
 
-### Show help and configured branches
+## Adding 'port' as a global command
+
+You can run directly as a python module from the tool's root directory:
+
+```bash/cmd
+python -m port --help
+```
+
+If you want a shorter `port` command to be available from any directory, 
+add the `porting-tool/bin` directory to your PATH:
+
+**Windows:**
+
+1. Press Win+R, run `SystemPropertiesAdvanced`
+2. Click **Environment Variables**, under **User variables**, select **Path** -> **Edit**
+4. Add a full path, e.g. `C:\tools\porting-tool\bin`
+5. Click **OK**, restart your terminal
+
+**macOS/Linux:**
+
+```bash
+echo 'export PATH="$PATH:/path/to/porting-tool/bin"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+After that, the `port` command works from any directory:
 
 ```bash
 port --help
