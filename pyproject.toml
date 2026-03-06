@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "port"
+version = "0.1.0"
+description = "CLI tool for porting pull requests across Bitbucket release branches"
+requires-python = ">=3.11"
+
+[project.scripts]
+port = "port.cli:main"
