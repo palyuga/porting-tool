@@ -23,7 +23,7 @@ For each target branch, the tool:
 
 - Python 3.11+
 - git
-Tested with Bitbucket v9.4.17
+- Tested with Bitbucket v9.4.17
 
 ## Configuration Setup
 
