@@ -1,0 +1,18 @@
+# Port — Configuration
+#
+# Copy this file to ~/.porting/config.toml and edit it:
+#   mkdir ~/.porting
+#   cp example.config.toml ~/.porting/config.toml
+
+# Path to your git repository (absolute or relative to this config file).
+# Required when the config file is not inside the git repo.
+[repo]
+path = "C:/projects/project-1"
+
+# Branch aliases: "short_alias" = "full_branch_name"
+# Use either the alias or the full name with the --to flag.
+[branches]
+"156" = "release/tdcore-156-branch"
+"168" = "release/tdcore-168-branch"
+"176" = "release/tdcore-176-branch"
+"m" = "master"
