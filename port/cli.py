@@ -113,7 +113,7 @@ def _derive_new_branch_name(
     e.g. bugfix/jira-7777-fix-156 + 176 -> bugfix/jira-7777-fix-176
          bugfix/jira-7777-fix     + 168 -> bugfix/jira-7777-fix-168
     """
-    for alias in known_aliases:
+    for alias in sorted(known_aliases, key=len, reverse=True):
         suffix = f"-{alias}"
         if source_branch.endswith(suffix):
             return source_branch[: -len(suffix)] + f"-{target_alias}"
@@ -330,6 +330,7 @@ def _run_normal(args: argparse.Namespace) -> None:
 def _run_continue() -> None:
     config = load_config()
     _switch_to_repo(config)
+    ensure_git_repo()
 
     try:
         state = load_state()
@@ -408,6 +409,7 @@ def _run_continue() -> None:
 def _run_abort() -> None:
     config = load_config()
     _switch_to_repo(config)
+    ensure_git_repo()
 
     if not has_state():
         _error("Nothing to abort — no porting session in progress.")
@@ -508,10 +510,8 @@ def main() -> None:
         if args.do_continue and args.do_abort:
             _error("Cannot use --continue and --abort together.")
         elif args.do_continue:
-            ensure_git_repo()
             _run_continue()
         elif args.do_abort:
-            ensure_git_repo()
             _run_abort()
         elif args.pr and args.to:
             _run_normal(args)
@@ -529,6 +529,10 @@ def main() -> None:
     except BitbucketError as exc:
         _error(str(exc))
     except RuntimeError as exc:
+        _error(str(exc))
+    except FileNotFoundError as exc:
+        _error(str(exc))
+    except ValueError as exc:
         _error(str(exc))
     except KeyboardInterrupt:
         print("\nAborted.")

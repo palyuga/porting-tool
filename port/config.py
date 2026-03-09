@@ -59,7 +59,8 @@ To get started:
 
      [branches]
      "128" = "release/my-128-branch"
-     "m" = "master" """
+     "m" = "master"
+"""
 
 
 class PortConfig:
