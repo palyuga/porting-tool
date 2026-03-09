@@ -123,7 +123,9 @@ If a cherry-pick has conflicts, the tool stops and tells you which files to fix:
   To resolve:
     1. Open the conflicted files in your IDE
     2. Resolve all conflicts and save
-    3. Run: port --continue
+    3. Stage resolved files:
+       git add <conflicted-file-1> <conflicted-file-2> ...
+    4. Run: port --continue
 ```
 
 After resolving conflicts in your IDE, resume:
