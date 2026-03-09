@@ -49,9 +49,8 @@ path = "C:/projects/tdcore"    # absolute path to your git repository
 "m" = "master"
 ```
 
-The `[repo]` path can be absolute or relative to the config file. It's required
-when the config is not inside the git repo. The tool will automatically switch
-to this directory before running git commands.
+The tool will automatically switch
+to the [repo] directory before running git commands.
 
 ### 2. Bitbucket Access Token
 
