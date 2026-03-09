@@ -169,7 +169,9 @@ def _process_single_target(
         print("  To resolve:")
         print("    1. Open the conflicted files in your IDE")
         print("    2. Resolve all conflicts and save")
-        print("    3. Run: port --continue")
+        print("    3. Stage resolved files:")
+        print("       git add <conflicted-file-1> <conflicted-file-2> ...")
+        print("    4. Run: port --continue")
         print("       Or:  port --abort    (to cancel porting for this branch)")
         print()
         return False
@@ -198,7 +200,8 @@ def _push_and_create_pr(
     _info("Creating pull request...")
     try:
         pr_data = client.create_pull_request(
-            project=pr_info.project_key,
+            owner_type=pr_info.owner_type,
+            owner=pr_info.project_key,
             repo=pr_info.repo_slug,
             title=pr_info.title,
             description=description,
@@ -212,7 +215,7 @@ def _push_and_create_pr(
         else:
             new_id = pr_data.get("id", "?")
             pr_url = (
-                f"{pr_info.base_url}/projects/{pr_info.project_key}"
+                f"{pr_info.base_url}/{pr_info.owner_type}/{pr_info.project_key}"
                 f"/repos/{pr_info.repo_slug}/pull-requests/{new_id}"
             )
         _success(f"Pull request created: {pr_url}")
@@ -243,6 +246,7 @@ def _save_conflict_state(
         current_alias=current_alias,
         remaining_targets=remaining,
         bitbucket_base_url=pr_info.base_url,
+        owner_type=pr_info.owner_type,
         project_key=pr_info.project_key,
         repo_slug=pr_info.repo_slug,
         auto_reviewers=auto_reviewers,
@@ -263,7 +267,7 @@ def _run_normal(args: argparse.Namespace) -> None:
     pr_url = args.pr
     target_args: list[str] = args.to
 
-    base_url, project, repo, pr_id = parse_pr_url(pr_url)
+    base_url, owner_type, owner, repo, pr_id = parse_pr_url(pr_url)
     client = BitbucketClient(base_url, config.pat)
 
     _info("Validating Bitbucket access token...")
@@ -284,12 +288,13 @@ def _run_normal(args: argparse.Namespace) -> None:
 
     _info(f"Fetching PR #{pr_id} details...")
     try:
-        pr_info = client.get_pull_request(project, repo, pr_id)
+        pr_info = client.get_pull_request(owner_type, owner, repo, pr_id)
     except BitbucketError as exc:
         _error(str(exc))
 
     pr_info.base_url = base_url
-    pr_info.project_key = project
+    pr_info.owner_type = owner_type
+    pr_info.project_key = owner
     pr_info.repo_slug = repo
 
     auto_reviewers = args.ar
@@ -347,14 +352,6 @@ def _run_continue() -> None:
             f"Please checkout the correct branch: git checkout {state.current_branch}"
         )
 
-    conflicted = get_conflicted_files()
-    if conflicted:
-        _error(
-            "There are still unresolved conflicts:\n"
-            + "\n".join(f"  - {f}" for f in conflicted)
-            + "\n\nResolve them and run 'port --continue', or 'port --abort' to cancel."
-        )
-
     if has_cherry_pick_in_progress():
         _info("Completing cherry-pick...")
         try:
@@ -365,6 +362,14 @@ def _run_continue() -> None:
                 + "\n".join(f"  - {f}" for f in exc.conflicted_files)
                 + "\n\nResolve them and run 'port --continue', or 'port --abort' to cancel."
             )
+    else:
+        conflicted = get_conflicted_files()
+        if conflicted:
+            _error(
+                "There are unresolved conflicts, but no cherry-pick is in progress:\n"
+                + "\n".join(f"  - {f}" for f in conflicted)
+                + "\n\nResolve them or clean up your working tree, then try again."
+            )
 
     pr_info = PullRequestInfo(
         pr_id=int(state.original_pr_url.rstrip("/").split("/")[-1]),
@@ -374,6 +379,7 @@ def _run_continue() -> None:
         source_branch=state.source_branch,
         approved_reviewers=state.approved_reviewers,
         base_url=state.bitbucket_base_url,
+        owner_type=state.owner_type,
         project_key=state.project_key,
         repo_slug=state.repo_slug,
     )

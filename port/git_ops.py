@@ -160,8 +160,7 @@ def has_cherry_pick_in_progress() -> bool:
 
 
 def cherry_pick_continue() -> None:
-    """Stage all files and continue the cherry-pick."""
-    _run("git", "add", "-A")
+    """Continue cherry-pick after the user stages resolved files."""
     result = _run(
         "git", "cherry-pick", "--continue", "--no-edit",
         check=False,

@@ -29,6 +29,7 @@ class PortingState:
     bitbucket_base_url: str
     project_key: str
     repo_slug: str
+    owner_type: str = "projects"
     auto_reviewers: bool = False
 
 

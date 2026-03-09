@@ -20,6 +20,7 @@ class PullRequestInfo:
     description: str
     source_branch: str
     commit_hash: str
+    owner_type: str = "projects"
     approved_reviewers: list[dict[str, str]] = field(default_factory=list)
     base_url: str = ""
     project_key: str = ""
@@ -28,31 +29,39 @@ class PullRequestInfo:
     @property
     def url(self) -> str:
         return (
-            f"{self.base_url}/projects/{self.project_key}"
+            f"{self.base_url}/{self.owner_type}/{self.project_key}"
             f"/repos/{self.repo_slug}/pull-requests/{self.pr_id}"
         )
 
 
-def parse_pr_url(url: str) -> tuple[str, str, str, int]:
-    """Parse a Bitbucket PR URL into (base_url, project_key, repo_slug, pr_id).
+def parse_pr_url(url: str) -> tuple[str, str, str, str, int]:
+    """Parse a Bitbucket PR URL into (base_url, owner_type, owner, repo_slug, pr_id).
 
     Expected format:
       https://host/projects/PROJ/repos/repo-name/pull-requests/123
+      https://host/users/username/repos/repo-name/pull-requests/123
     """
     match = re.match(
-        r"^(https?://[^/]+)/projects/([^/]+)/repos/([^/]+)/pull-requests/(\d+)",
+        (
+            r"^(https?://[^/]+)"
+            r"/(projects|users)/([^/]+)/repos/([^/]+)/pull-requests/(\d+)"
+            r"(?:/.*)?$"
+        ),
         url.strip(),
     )
     if not match:
         raise BitbucketError(
             f"Invalid Bitbucket PR URL: {url}\n"
-            "Expected format: https://<host>/projects/<PROJECT>/repos/<REPO>/pull-requests/<ID>"
+            "Expected format: "
+            "https://<host>/projects/<PROJECT>/repos/<REPO>/pull-requests/<ID> "
+            "or https://<host>/users/<USER>/repos/<REPO>/pull-requests/<ID>"
         )
     return (
         match.group(1),
         match.group(2),
         match.group(3),
-        int(match.group(4)),
+        match.group(4),
+        int(match.group(5)),
     )
 
 
@@ -65,6 +74,13 @@ class BitbucketClient:
         self.base_url = base_url.rstrip("/")
         self.pat = pat
         self._ssl_ctx = ssl.create_default_context()
+
+    @staticmethod
+    def _pr_path(owner_type: str, owner: str, repo: str, pr_id: int | None = None) -> str:
+        base = f"/{owner_type}/{owner}/repos/{repo}/pull-requests"
+        if pr_id is None:
+            return base
+        return f"{base}/{pr_id}"
 
     def _request(
         self,
@@ -112,9 +128,9 @@ class BitbucketClient:
             ) from exc
 
     def get_pull_request(
-        self, project: str, repo: str, pr_id: int
+        self, owner_type: str, owner: str, repo: str, pr_id: int
     ) -> PullRequestInfo:
-        path = f"/projects/{project}/repos/{repo}/pull-requests/{pr_id}"
+        path = self._pr_path(owner_type, owner, repo, pr_id)
         data = self._request("GET", path)
 
         title = data.get("title", "")
@@ -154,15 +170,17 @@ class BitbucketClient:
             description=description,
             source_branch=source_branch,
             commit_hash=commit_hash,
+            owner_type=owner_type,
             approved_reviewers=approved,
             base_url=self.base_url,
-            project_key=project,
+            project_key=owner,
             repo_slug=repo,
         )
 
     def create_pull_request(
         self,
-        project: str,
+        owner_type: str,
+        owner: str,
         repo: str,
         title: str,
         description: str,
@@ -170,7 +188,7 @@ class BitbucketClient:
         to_branch: str,
         reviewers: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
-        path = f"/projects/{project}/repos/{repo}/pull-requests"
+        path = self._pr_path(owner_type, owner, repo)
         body: dict[str, Any] = {
             "title": title,
             "description": description,
