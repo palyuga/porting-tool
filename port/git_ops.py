@@ -126,6 +126,20 @@ def fetch(remote: str = "origin") -> None:
     _run("git", "fetch", remote)
 
 
+def fetch_remote_branch(remote: str, branch: str) -> None:
+    """Ensure a remote-tracking branch exists and is up to date.
+
+    A plain ``git fetch`` only updates refs allowed by ``remote.<name>.fetch``.
+    Narrow refspecs (e.g. only release branches) skip feature/bugfix branches, so
+    cherry-pick targets can be missing locally with ``fatal: bad object``.
+    An explicit refspec always retrieves that branch's objects.
+    """
+    src = f"refs/heads/{branch}"
+    dst = f"refs/remotes/{remote}/{branch}"
+    print(f"Fetching {branch} from {remote} (for cherry-pick objects)...")
+    _run("git", "fetch", remote, f"{src}:{dst}")
+
+
 def checkout_new_branch(branch_name: str, start_point: str) -> None:
     _run("git", "checkout", "-b", branch_name, start_point)
 

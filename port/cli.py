@@ -19,6 +19,7 @@ from port.git_ops import (
     delete_local_branch,
     ensure_git_repo,
     fetch,
+    fetch_remote_branch,
     get_conflicted_files,
     get_current_branch,
     has_cherry_pick_in_progress,
@@ -315,6 +316,7 @@ def _run_normal(args: argparse.Namespace) -> None:
     ensure_git_repo()
     _handle_dirty_tree()
     fetch()
+    fetch_remote_branch("origin", pr_info.source_branch)
 
     all_aliases = list(config.branches.keys())
     for i, (alias, target_branch) in enumerate(resolved_targets):
@@ -396,6 +398,7 @@ def _run_continue() -> None:
     if remaining:
         _info(f"\n{len(remaining)} target(s) remaining...")
         fetch()
+        fetch_remote_branch("origin", state.source_branch)
 
     for i, target_dict in enumerate(remaining):
         alias = target_dict["alias"]
