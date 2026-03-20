@@ -19,7 +19,7 @@ from port.git_ops import (
     delete_local_branch,
     ensure_git_repo,
     fetch,
-    fetch_remote_branch,
+    fetch_pr_cherry_pick_objects,
     get_conflicted_files,
     get_current_branch,
     has_cherry_pick_in_progress,
@@ -251,6 +251,7 @@ def _save_conflict_state(
         project_key=pr_info.project_key,
         repo_slug=pr_info.repo_slug,
         auto_reviewers=auto_reviewers,
+        pr_id=pr_info.pr_id,
     )
     save_state(state)
 
@@ -316,7 +317,7 @@ def _run_normal(args: argparse.Namespace) -> None:
     ensure_git_repo()
     _handle_dirty_tree()
     fetch()
-    fetch_remote_branch("origin", pr_info.source_branch)
+    fetch_pr_cherry_pick_objects("origin", pr_info.source_branch, pr_info.pr_id)
 
     all_aliases = list(config.branches.keys())
     for i, (alias, target_branch) in enumerate(resolved_targets):
@@ -398,7 +399,15 @@ def _run_continue() -> None:
     if remaining:
         _info(f"\n{len(remaining)} target(s) remaining...")
         fetch()
-        fetch_remote_branch("origin", state.source_branch)
+        if state.pr_id is None:
+            _error(
+                "Cannot determine PR number from saved state (needed to fetch "
+                "refs/pull-requests/…/from).\n"
+                "Run 'port --abort' and start a new session with port --pr <URL> --to …"
+            )
+        fetch_pr_cherry_pick_objects(
+            "origin", state.source_branch, state.pr_id
+        )
 
     for i, target_dict in enumerate(remaining):
         alias = target_dict["alias"]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -12,6 +13,11 @@ STATE_FILE = "state.json"
 class TargetBranch:
     alias: str
     branch: str
+
+
+def _pr_id_from_url(url: str) -> int | None:
+    m = re.search(r"/pull-requests/(\d+)", url)
+    return int(m.group(1)) if m else None
 
 
 @dataclass
@@ -31,6 +37,7 @@ class PortingState:
     repo_slug: str
     owner_type: str = "projects"
     auto_reviewers: bool = False
+    pr_id: int | None = None
 
 
 def _state_path() -> Path:
@@ -55,7 +62,10 @@ def load_state() -> PortingState:
         )
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
-    return PortingState(**data)
+    state = PortingState(**data)
+    if state.pr_id is None:
+        state.pr_id = _pr_id_from_url(state.original_pr_url)
+    return state
 
 
 def clear_state() -> None:

@@ -126,18 +126,59 @@ def fetch(remote: str = "origin") -> None:
     _run("git", "fetch", remote)
 
 
-def fetch_remote_branch(remote: str, branch: str) -> None:
-    """Ensure a remote-tracking branch exists and is up to date.
+def _stderr_suggests_missing_remote_ref(stderr: str) -> bool:
+    s = stderr.lower()
+    return (
+        "couldn't find remote ref" in s
+        or "could not find remote ref" in s
+        or "unable to find remote ref" in s
+        or "did not match any file" in s
+    )
 
-    A plain ``git fetch`` only updates refs allowed by ``remote.<name>.fetch``.
-    Narrow refspecs (e.g. only release branches) skip feature/bugfix branches, so
-    cherry-pick targets can be missing locally with ``fatal: bad object``.
-    An explicit refspec always retrieves that branch's objects.
+
+def fetch_pr_cherry_pick_objects(
+    remote: str, source_branch: str, pr_id: int
+) -> None:
+    """Fetch Git objects for the PR commit (for cherry-pick).
+
+    1. ``refs/heads/<source_branch>`` — works when the branch still exists, and
+       bypasses narrow ``remote.*.fetch`` refspecs that would skip it.
+
+    2. ``refs/pull-requests/<pr_id>/from`` — Bitbucket Server / Data Center
+       keeps this ref after the source branch is deleted (common post-merge).
+
+    If both fail, raises ``GitError`` with the last fetch output.
     """
-    src = f"refs/heads/{branch}"
-    dst = f"refs/remotes/{remote}/{branch}"
-    print(f"Fetching {branch} from {remote} (for cherry-pick objects)...")
-    _run("git", "fetch", remote, f"{src}:{dst}")
+    branch_src = f"refs/heads/{source_branch}"
+    branch_dst = f"refs/remotes/{remote}/{source_branch}"
+    print(f"Fetching {source_branch} from {remote} (for cherry-pick objects)...")
+    branch_result = _run(
+        "git", "fetch", remote, f"{branch_src}:{branch_dst}", check=False
+    )
+    if branch_result.returncode == 0:
+        return
+
+    branch_err = (branch_result.stderr or "").strip()
+    if not _stderr_suggests_missing_remote_ref(branch_err):
+        raise GitError(
+            f"git fetch failed for source branch {source_branch!r}.\n"
+            f"stderr: {branch_err}"
+        )
+
+    pr_src = f"refs/pull-requests/{pr_id}/from"
+    pr_dst = f"refs/remotes/{remote}/pull-requests/{pr_id}/from"
+    print(
+        f"Source branch ref not on remote (often deleted after merge); "
+        f"fetching {pr_src}..."
+    )
+    pr_result = _run("git", "fetch", remote, f"{pr_src}:{pr_dst}", check=False)
+    if pr_result.returncode != 0:
+        pr_err = (pr_result.stderr or "").strip()
+        raise GitError(
+            "Could not fetch Git objects for this PR's commit.\n"
+            f"Tried branch ref {branch_src!r} and Bitbucket PR ref {pr_src!r}.\n"
+            f"Last error:\n{pr_err}"
+        )
 
 
 def checkout_new_branch(branch_name: str, start_point: str) -> None:
