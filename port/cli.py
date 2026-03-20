@@ -133,9 +133,8 @@ def _process_single_target(
 ) -> bool:
     """Port the change onto the target branch, push, and open a PR.
 
-    Uses ``git cherry-pick`` when the commit is already in the local object
-    database; otherwise downloads the PR diff over HTTPS (Bitbucket REST API)
-    and applies it with ``git apply``.
+    Cherry-picks the PR's commit hash in the configured local clone (the commit
+    must already exist there — same as a manual ``git cherry-pick``).
 
     Returns True if successful, False if conflicts occurred (state saved).
     """

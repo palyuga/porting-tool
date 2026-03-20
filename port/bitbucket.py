@@ -25,7 +25,6 @@ class PullRequestInfo:
     base_url: str = ""
     project_key: str = ""
     repo_slug: str = ""
-    merge_target_branch: str = ""  # toRef — the branch this PR was originally merged into
 
     @property
     def url(self) -> str:
@@ -140,7 +139,6 @@ class BitbucketClient:
         title = data.get("title", "")
         description = data.get("description", "")
         source_branch = data["fromRef"]["displayId"]
-        merge_target_branch = data.get("toRef", {}).get("displayId", "")
 
         commit_hash = data["fromRef"].get("latestCommit", "")
         if not commit_hash:
@@ -180,7 +178,6 @@ class BitbucketClient:
             base_url=self.base_url,
             project_key=owner,
             repo_slug=repo,
-            merge_target_branch=merge_target_branch,
         )
 
     def create_pull_request(
