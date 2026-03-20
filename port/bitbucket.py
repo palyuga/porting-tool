@@ -25,6 +25,7 @@ class PullRequestInfo:
     base_url: str = ""
     project_key: str = ""
     repo_slug: str = ""
+    merge_target_branch: str = ""  # toRef — the branch this PR was originally merged into
 
     @property
     def url(self) -> str:
@@ -69,6 +70,7 @@ class BitbucketClient:
     """Minimal Bitbucket Data Center REST API client using only urllib."""
 
     API_PATH = "/rest/api/latest"
+    _HTTP_TIMEOUT = 120
 
     def __init__(self, base_url: str, pat: str) -> None:
         self.base_url = base_url.rstrip("/")
@@ -96,7 +98,9 @@ class BitbucketClient:
         req.add_header("Accept", "application/json")
 
         try:
-            with urllib.request.urlopen(req, context=self._ssl_ctx) as resp:
+            with urllib.request.urlopen(
+                req, context=self._ssl_ctx, timeout=self._HTTP_TIMEOUT
+            ) as resp:
                 return json.loads(resp.read().decode())
         except urllib.error.HTTPError as exc:
             status = exc.code
@@ -136,6 +140,7 @@ class BitbucketClient:
         title = data.get("title", "")
         description = data.get("description", "")
         source_branch = data["fromRef"]["displayId"]
+        merge_target_branch = data.get("toRef", {}).get("displayId", "")
 
         commit_hash = data["fromRef"].get("latestCommit", "")
         if not commit_hash:
@@ -175,6 +180,7 @@ class BitbucketClient:
             base_url=self.base_url,
             project_key=owner,
             repo_slug=repo,
+            merge_target_branch=merge_target_branch,
         )
 
     def create_pull_request(

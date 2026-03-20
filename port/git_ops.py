@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from dataclasses import dataclass
@@ -19,6 +20,10 @@ class CherryPickConflict(Exception):
         super().__init__(f"Conflicts in: {', '.join(conflicted_files)}")
 
 
+class CommitNotAvailable(Exception):
+    """Raised when the commit hash is not in the local object database."""
+
+
 @dataclass
 class RemoteInfo:
     """Parsed components from git remote URL."""
@@ -32,13 +37,19 @@ def _run(
     *args: str,
     check: bool = True,
     capture: bool = True,
+    env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     try:
+        run_env = None
+        if env is not None:
+            run_env = os.environ.copy()
+            run_env.update(env)
         return subprocess.run(
             args,
             check=check,
             capture_output=capture,
             text=True,
+            env=run_env,
         )
     except subprocess.CalledProcessError as exc:
         raise GitError(
@@ -126,70 +137,26 @@ def fetch(remote: str = "origin") -> None:
     _run("git", "fetch", remote)
 
 
-def _stderr_suggests_missing_remote_ref(stderr: str) -> bool:
-    s = stderr.lower()
-    return (
-        "couldn't find remote ref" in s
-        or "could not find remote ref" in s
-        or "unable to find remote ref" in s
-        or "did not match any file" in s
-    )
-
-
-def fetch_pr_cherry_pick_objects(
-    remote: str, source_branch: str, pr_id: int
-) -> None:
-    """Fetch Git objects for the PR commit (for cherry-pick).
-
-    1. ``refs/heads/<source_branch>`` — works when the branch still exists, and
-       bypasses narrow ``remote.*.fetch`` refspecs that would skip it.
-
-    2. ``refs/pull-requests/<pr_id>/from`` — Bitbucket Server / Data Center
-       keeps this ref after the source branch is deleted (common post-merge).
-
-    If both fail, raises ``GitError`` with the last fetch output.
-    """
-    branch_src = f"refs/heads/{source_branch}"
-    branch_dst = f"refs/remotes/{remote}/{source_branch}"
-    print(f"Fetching {source_branch} from {remote} (for cherry-pick objects)...")
-    branch_result = _run(
-        "git", "fetch", remote, f"{branch_src}:{branch_dst}", check=False
-    )
-    if branch_result.returncode == 0:
-        return
-
-    branch_err = (branch_result.stderr or "").strip()
-    if not _stderr_suggests_missing_remote_ref(branch_err):
-        raise GitError(
-            f"git fetch failed for source branch {source_branch!r}.\n"
-            f"stderr: {branch_err}"
-        )
-
-    pr_src = f"refs/pull-requests/{pr_id}/from"
-    pr_dst = f"refs/remotes/{remote}/pull-requests/{pr_id}/from"
-    print(
-        f"Source branch ref not on remote (often deleted after merge); "
-        f"fetching {pr_src}..."
-    )
-    pr_result = _run("git", "fetch", remote, f"{pr_src}:{pr_dst}", check=False)
-    if pr_result.returncode != 0:
-        pr_err = (pr_result.stderr or "").strip()
-        raise GitError(
-            "Could not fetch Git objects for this PR's commit.\n"
-            f"Tried branch ref {branch_src!r} and Bitbucket PR ref {pr_src!r}.\n"
-            f"Last error:\n{pr_err}"
-        )
-
 
 def checkout_new_branch(branch_name: str, start_point: str) -> None:
     _run("git", "checkout", "-b", branch_name, start_point)
 
 
 def cherry_pick(commit_hash: str) -> None:
-    """Cherry-pick a commit. Raises CherryPickConflict on conflicts."""
+    """Cherry-pick a commit.
+
+    Raises:
+        CommitNotAvailable  — commit is not in the local object database.
+        CherryPickConflict  — merge conflicts that need manual resolution.
+        GitError            — any other git failure.
+    """
     result = _run("git", "cherry-pick", commit_hash, check=False)
     if result.returncode == 0:
         return
+
+    stderr = (result.stderr or "").strip()
+    if "bad object" in stderr or "unknown revision" in stderr:
+        raise CommitNotAvailable(commit_hash)
 
     conflicted = get_conflicted_files()
     if conflicted:
@@ -197,7 +164,7 @@ def cherry_pick(commit_hash: str) -> None:
 
     raise GitError(
         f"Cherry-pick failed for commit {commit_hash}.\n"
-        f"stderr: {(result.stderr or '').strip()}"
+        f"stderr: {stderr}"
     )
 
 
@@ -273,6 +240,9 @@ def revert_changes() -> None:
 
 
 def delete_local_branch(branch_name: str) -> None:
+    """Delete a local branch, switching away first if it is currently checked out."""
+    if get_current_branch() == branch_name:
+        _run("git", "checkout", "--detach")
     _run("git", "branch", "-D", branch_name)
 
 

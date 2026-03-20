@@ -7,6 +7,7 @@ import sys
 from port.bitbucket import BitbucketClient, BitbucketError, PullRequestInfo, parse_pr_url
 from port.config import PortConfig, load_branches_only, load_config
 from port.git_ops import (
+    CommitNotAvailable,
     CherryPickConflict,
     GitError,
     abort_cherry_pick,
@@ -19,7 +20,6 @@ from port.git_ops import (
     delete_local_branch,
     ensure_git_repo,
     fetch,
-    fetch_pr_cherry_pick_objects,
     get_conflicted_files,
     get_current_branch,
     has_cherry_pick_in_progress,
@@ -48,6 +48,7 @@ def _header(msg: str) -> None:
     print(f"\n{'=' * 60}")
     print(f"  {msg}")
     print(f"{'=' * 60}")
+
 
 
 def _switch_to_repo(config: PortConfig) -> None:
@@ -130,7 +131,11 @@ def _process_single_target(
     known_aliases: list[str] | None = None,
     auto_reviewers: bool = False,
 ) -> bool:
-    """Cherry-pick, push, and create PR for one target branch.
+    """Port the change onto the target branch, push, and open a PR.
+
+    Uses ``git cherry-pick`` when the commit is already in the local object
+    database; otherwise downloads the PR diff over HTTPS (Bitbucket REST API)
+    and applies it with ``git apply``.
 
     Returns True if successful, False if conflicts occurred (state saved).
     """
@@ -157,6 +162,13 @@ def _process_single_target(
     _info(f"Cherry-picking commit {pr_info.commit_hash[:12]}...")
     try:
         cherry_pick(pr_info.commit_hash)
+    except CommitNotAvailable:
+        _error(
+            f"Commit {pr_info.commit_hash[:12]} is not in this local repository.\n\n"
+            "Make sure [repo] path in ~/.porting/config.toml points to the clone where "
+            "you normally work — the one you ran 'git fetch' in before cherry-picking manually.\n"
+            f"  git cat-file -e {pr_info.commit_hash[:12]}   # must exit 0 in that clone"
+        )
     except CherryPickConflict as exc:
         _save_conflict_state(
             pr_info, new_branch, target_branch, alias, remaining, auto_reviewers
@@ -317,7 +329,6 @@ def _run_normal(args: argparse.Namespace) -> None:
     ensure_git_repo()
     _handle_dirty_tree()
     fetch()
-    fetch_pr_cherry_pick_objects("origin", pr_info.source_branch, pr_info.pr_id)
 
     all_aliases = list(config.branches.keys())
     for i, (alias, target_branch) in enumerate(resolved_targets):
@@ -399,15 +410,6 @@ def _run_continue() -> None:
     if remaining:
         _info(f"\n{len(remaining)} target(s) remaining...")
         fetch()
-        if state.pr_id is None:
-            _error(
-                "Cannot determine PR number from saved state (needed to fetch "
-                "refs/pull-requests/…/from).\n"
-                "Run 'port --abort' and start a new session with port --pr <URL> --to …"
-            )
-        fetch_pr_cherry_pick_objects(
-            "origin", state.source_branch, state.pr_id
-        )
 
     for i, target_dict in enumerate(remaining):
         alias = target_dict["alias"]
