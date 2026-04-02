@@ -73,14 +73,14 @@ def _handle_dirty_tree() -> None:
 
     while True:
         choice = input("  Your choice [A/s/r]: ").strip().lower()
-        if choice in ("", "a"):
+        if choice in ("", "a", "A"):
             print("  Aborted.")
             sys.exit(0)
-        elif choice == "s":
+        elif choice in ("s", "S"):
             stash_changes()
             _success("Changes stashed. Restore later with: git stash pop")
             return
-        elif choice == "r":
+        elif choice in ("r", "R"):
             confirm = input("  Are you sure? All changes will be lost. Type 'yes': ").strip()
             if confirm.lower() == "yes":
                 revert_changes()
@@ -131,7 +131,7 @@ def _process_single_target(
     known_aliases: list[str] | None = None,
     auto_reviewers: bool = False,
 ) -> bool:
-    """Port the change onto the target branch, push, and open a PR.
+    """Port the change onto the target branch, push and open a PR.
 
     Cherry-picks the PR's commit hash in the configured local clone (the commit
     must already exist there — same as a manual ``git cherry-pick``).
